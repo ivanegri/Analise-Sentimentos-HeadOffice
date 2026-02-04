@@ -57,5 +57,23 @@ def analyze():
 def health():
     return jsonify({'status': 'ok'})
 
+@app.route('/version', methods=['GET'])
+def version():
+    """Returns version info to verify deployment"""
+    return jsonify({
+        'version': '2.0-improved',
+        'sentiment_levels': 7,
+        'features': ['tanh_compression', 'granular_labels'],
+        'labels': [
+            'Very Negative',
+            'Negative', 
+            'Slightly Negative',
+            'Neutral',
+            'Slightly Positive',
+            'Positive',
+            'Very Positive'
+        ]
+    })
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
