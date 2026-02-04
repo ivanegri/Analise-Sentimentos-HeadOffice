@@ -23,12 +23,19 @@ class SentimentAnalyzer:
             texts = [t.strip() for t in conversation_data.split('.') if len(t.strip()) > 20]
 
         else:
-            messages = conversation_data.get('Full Conversation', [])
-            for m in messages:
-                if not m.get('sender'):
-                    msg = m.get('message', '').strip()
-                    if len(msg) > 5:
-                        texts.append(msg)
+            # New format: simple object with direct 'message' field
+            if 'message' in conversation_data and isinstance(conversation_data.get('message'), str):
+                msg = conversation_data['message'].strip()
+                if len(msg) > 5:
+                    texts.append(msg)
+            # Old format: 'Full Conversation' array
+            else:
+                messages = conversation_data.get('Full Conversation', [])
+                for m in messages:
+                    if not m.get('sender'):
+                        msg = m.get('message', '').strip()
+                        if len(msg) > 5:
+                            texts.append(msg)
 
         if not texts:
             return {'score': 50.0, 'sentiment_label': 'Neutral'}
