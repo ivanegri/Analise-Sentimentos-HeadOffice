@@ -1,0 +1,15 @@
+__pycache__
+*.pyc
+.git
+.gitignore
+*.json
+*.pdf
+*.csv
+*.lock
+venv
+env
+.env
+.DS_Store
+Dockerfile
+docker-compose.yml
+README.md

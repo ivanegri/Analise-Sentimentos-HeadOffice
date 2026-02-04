@@ -1,0 +1,17 @@
+services:
+  sentiment-api:
+    build: .
+    container_name: sentiment_api
+    restart: always
+    ports:
+      - "5000:5000"
+    # Mount the code if you want to develop live, but for prod use image
+    volumes:
+      - .:/app
+    command: gunicorn -w 1 -b 0.0.0.0:5000 app:app --timeout 300
+    environment:
+      - WORKERS=1
+    deploy:
+      resources:
+        limits:
+          memory: 4G # Limit memory usage if possible, model is around 1-1.5GB loaded

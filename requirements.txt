@@ -1,0 +1,5 @@
+flask
+pysentimiento
+gunicorn
+pypdf
+python-docx
