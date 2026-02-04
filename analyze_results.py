@@ -3,9 +3,9 @@ import json
 import pandas as pd
 
 # Configuration
-#API_URL = 'http://216.22.5.204:5000/analyze'
-API_URL = 'http://localhost:5000/analyze'
-INPUT_FILE = 'headoffice_ai_exported_data_2026-01-29T12_57_37.700Z.json'
+API_URL = 'http://216.22.5.204:5000/analyze'
+#API_URL = 'http://localhost:5000/analyze'
+INPUT_FILE = 'conversas_whatsapp.json'
 
 def main():
     print(f"1. Loading data from {INPUT_FILE}...")
