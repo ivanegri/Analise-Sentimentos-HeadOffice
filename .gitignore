@@ -1,10 +1,21 @@
+# Python
 __pycache__/
 *.pyc
-*.json
-*.pdf
-*.csv
-*.lock
+*.pyo
 venv/
 env/
-.env
+
+# IDE
 .DS_Store
+.vscode/
+.idea/
+
+# Data files (test/temporary)
+*.json
+*.csv
+*.pdf
+*.lock
+*~lock*
+
+# Testing & Development Scripts (keep in repo but mark as dev)
+# These are useful for other developers but not needed in production
