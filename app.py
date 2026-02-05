@@ -61,9 +61,9 @@ def health():
 def version():
     """Returns version info to verify deployment"""
     return jsonify({
-        'version': '2.0-improved',
+        'version': '3.0',
         'sentiment_levels': 7,
-        'features': ['tanh_compression', 'granular_labels'],
+        'features': ['weighted_scoring', 'real_7_scores', 'reduced_neutral_bias'],
         'labels': [
             'Very Negative',
             'Negative', 
