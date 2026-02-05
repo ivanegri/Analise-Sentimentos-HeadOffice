@@ -94,12 +94,10 @@ class SentimentAnalyzer:
             # Emotional intensity (how non-neutral it is)
             intensity = max(p['POS'], p['NEG'])
             
-            # Calculate weight: emotional messages count more (quadratic weight)
-            # Weak neutrals (intensity < 0.25) get minimal weight
-            if intensity < 0.25:
-                weight = 0.1  # Weak signals barely count
-            else:
-                weight = intensity ** 2  # Quadratic: stronger emotions dominate
+            # Calculate weight: emotional messages count more
+            # Linear weighting to allow weaker signals to pass through
+            # without getting crushed by a threshold
+            weight = intensity
 
             chunk_results.append({
                 'pos': p['POS'],
@@ -114,6 +112,9 @@ class SentimentAnalyzer:
 
         # Weighted aggregation of raw probabilities
         total_weight = sum(c['weight'] for c in chunk_results)
+        if total_weight == 0:
+             return SentimentAnalyzer._build_neutral_response()
+             
         avg_pos = sum(c['pos'] * c['weight'] for c in chunk_results) / total_weight
         avg_neg = sum(c['neg'] * c['weight'] for c in chunk_results) / total_weight
         avg_neu = sum(c['neu'] * c['weight'] for c in chunk_results) / total_weight
@@ -150,45 +151,39 @@ class SentimentAnalyzer:
         scores = {level: 0.0 for level in SentimentAnalyzer.LEVELS}
         
         # Distribute negative probability across negative levels
-        if neg > 0.05:
-            if neg > 0.7:  # Strong negative
-                scores['very_negative'] = neg * 0.6
+        if neg > 0.02: # Lower threshold to catch slight negatives
+            if neg > 0.6:  # Strong negative
+                scores['very_negative'] = neg * 0.7
                 scores['negative'] = neg * 0.3
-                scores['slightly_negative'] = neg * 0.1
-            elif neg > 0.4:  # Moderate negative
-                scores['very_negative'] = neg * 0.2
-                scores['negative'] = neg * 0.5
-                scores['slightly_negative'] = neg * 0.3
+            elif neg > 0.3:  # Moderate negative
+                scores['negative'] = neg * 0.6
+                scores['slightly_negative'] = neg * 0.4
             else:  # Weak negative
-                scores['negative'] = neg * 0.3
-                scores['slightly_negative'] = neg * 0.7
+                scores['slightly_negative'] = neg * 1.0 # Push all to slightly negative if weak
         
         # Distribute positive probability across positive levels
-        if pos > 0.05:
-            if pos > 0.7:  # Strong positive
-                scores['very_positive'] = pos * 0.6
+        if pos > 0.02:
+            if pos > 0.6:  # Strong positive
+                scores['very_positive'] = pos * 0.7
                 scores['positive'] = pos * 0.3
-                scores['slightly_positive'] = pos * 0.1
-            elif pos > 0.4:  # Moderate positive
-                scores['very_positive'] = pos * 0.2
-                scores['positive'] = pos * 0.5
-                scores['slightly_positive'] = pos * 0.3
+            elif pos > 0.3:  # Moderate positive
+                scores['positive'] = pos * 0.6
+                scores['slightly_positive'] = pos * 0.4
             else:  # Weak positive
-                scores['positive'] = pos * 0.3
-                scores['slightly_positive'] = pos * 0.7
+                scores['slightly_positive'] = pos * 1.0
         
-        # Neutral: only significant if truly dominant
-        # Reduce neutral influence when there's clear sentiment
-        if neu > 0.5 and intensity < 0.3:
-            scores['neutral'] = neu * 0.8
-        elif neu > 0.3:
-            scores['neutral'] = neu * 0.4
+        # Neutral: Only allow neutral to have significant score if truly no signal
+        # If there is noticeable intensity (> 0.15), crush neutral score
+        if intensity > 0.3:
+            scores['neutral'] = 0.0 # Signal is too strong for neutral
+        elif intensity > 0.15:
+            scores['neutral'] = neu * 0.1 # Heavily penalized
         else:
-            scores['neutral'] = neu * 0.2
+            scores['neutral'] = neu # True neutral
         
         # Normalize to sum to 1
         total = sum(scores.values())
-        if total > 0:
+        if total > 0.001:
             scores = {k: v / total for k, v in scores.items()}
         else:
             scores['neutral'] = 1.0
