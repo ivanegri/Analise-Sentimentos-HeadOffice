@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% set active_page = 'feedbacks' %}
+
+{% block title %}Feedbacks — Sentiment Dashboard{% endblock %}
+
+{% block content %}
+<div class="feedbacks-header">
+    <h1>Feedbacks de Correção</h1>
+    {% if feedbacks %}
+    <form action="/feedbacks/clear" method="POST"
+        onsubmit="return confirm('Limpar todos os feedbacks? Isso irá resetar o refinamento do modelo.')">
+        <button type="submit" class="btn btn-danger btn-sm">🗑 Limpar Tudo</button>
+    </form>
+    {% endif %}
+</div>
+
+{% if stats.total > 0 %}
+<div class="alert alert-info">
+    ✦ O modelo está usando <strong>{{ stats.total }}</strong> correções para refinar as próximas análises.
+    O offset global de score atual é de <strong>{{ offsets.score_offset }}</strong> pontos.
+</div>
+
+<!-- Per-label stats -->
+{% if stats.corrections_by_label %}
+<div class="card" style="margin-bottom: 2rem;">
+    <div class="card-title">Correções por Categoria</div>
+    <div class="results-table-wrapper">
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th>Original</th>
+                    <th>Corrigido Para</th>
+                    <th>Quantidade</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for orig, corrections in stats.corrections_by_label.items() %}
+                {% for corr, count in corrections.items() %}
+                <tr>
+                    <td><span class="badge {{ orig | lower | replace(' ', '-') }}">{{ orig }}</span></td>
+                    <td>
+                        <span class="arrow-correction">→</span>
+                        <span class="badge {{ corr | lower | replace(' ', '-') }}">{{ corr }}</span>
+                    </td>
+                    <td>{{ count }}</td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- All feedbacks list -->
+<div class="card">
+    <div class="card-title">Histórico de Feedbacks ({{ feedbacks|length }})</div>
+    <div class="results-table-wrapper">
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th>Conversa ID</th>
+                    <th>Original</th>
+                    <th></th>
+                    <th>Correção</th>
+                    <th>Score Original</th>
+                    <th>Data</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fb in feedbacks | reverse %}
+                <tr>
+                    <td class="cell-id" title="{{ fb.conversation_id }}">{{ fb.conversation_id[-8:] }}</td>
+                    <td><span class="badge {{ fb.original_label | lower | replace(' ', '-') }}">{{ fb.original_label
+                            }}</span></td>
+                    <td style="color: var(--text-muted);">→</td>
+                    <td><span class="badge {{ fb.corrected_label | lower | replace(' ', '-') }}">{{ fb.corrected_label
+                            }}</span></td>
+                    <td class="cell-score">{{ fb.original_score }}</td>
+                    <td style="font-size: 0.78rem; color: var(--text-muted);">{{ fb.timestamp[:16] | replace('T', ' ')
+                        }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="icon">📝</div>
+        <p>Nenhum feedback registrado ainda.</p>
+        <p style="margin-top: 0.5rem; font-size: 0.8rem;">Faça uma análise e corrija os resultados para refinar o
+            modelo.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

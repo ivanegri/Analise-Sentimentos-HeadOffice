@@ -5,7 +5,7 @@ import pandas as pd
 # Configuration
 API_URL = 'http://216.22.5.204:5000/analyze'
 #API_URL = 'http://localhost:5000/analyze'
-INPUT_FILE = 'teste_real.json'
+INPUT_FILE = 'Dry_Wash2.json'
 
 def main():
     print(f"1. Loading data from {INPUT_FILE}...")

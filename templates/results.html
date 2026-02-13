@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% set active_page = 'results' %}
+
+{% block title %}Resultados — Sentiment Dashboard{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+    <div>
+        <h1 style="font-size: 1.3rem; font-weight: 700;">{{ session.filename }}</h1>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">{{ session.date }} · {{ session.count }} conversas
+            analisadas
+            {% if refinement_active %}
+            <span class="refined-indicator">✦ Refinamento ativo ({{ feedback_count }} correções)</span>
+            {% endif %}
+        </p>
+    </div>
+    <a href="/" class="btn btn-ghost btn-sm">← Nova Análise</a>
+</div>
+
+<!-- Metrics -->
+<div class="metrics-grid">
+    <div class="card metric-card">
+        <div class="metric-value">{{ session.count }}</div>
+        <div class="metric-label">Total Conversas</div>
+    </div>
+    <div class="card metric-card">
+        <div class="metric-value">{{ avg_score }}</div>
+        <div class="metric-label">Score Médio</div>
+    </div>
+    <div class="card metric-card">
+        <div class="metric-value" style="-webkit-text-fill-color: var(--positive);">{{ positive_pct }}%</div>
+        <div class="metric-label">Positivos</div>
+    </div>
+    <div class="card metric-card">
+        <div class="metric-value" style="-webkit-text-fill-color: var(--very-negative);">{{ negative_pct }}%</div>
+        <div class="metric-label">Negativos</div>
+    </div>
+</div>
+
+<!-- Distribution Chart -->
+<div class="card distribution-chart">
+    <div class="card-title">Distribuição de Sentimentos</div>
+    <div class="chart-bars">
+        {% for level in distribution %}
+        <div class="chart-row">
+            <span class="chart-label">{{ level.label }}</span>
+            <div class="chart-bar-wrapper">
+                <div class="chart-bar {{ level.css_class }}" style="width: {{ level.pct }}%;"></div>
+            </div>
+            <span class="chart-count">{{ level.count }} ({{ level.pct }}%)</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filters-row">
+    <button class="filter-btn active" data-filter="all">Todos</button>
+    <button class="filter-btn" data-filter="Very Positive">Very Positive</button>
+    <button class="filter-btn" data-filter="Positive">Positive</button>
+    <button class="filter-btn" data-filter="Slightly Positive">Slightly Positive</button>
+    <button class="filter-btn" data-filter="Neutral">Neutral</button>
+    <button class="filter-btn" data-filter="Slightly Negative">Slightly Negative</button>
+    <button class="filter-btn" data-filter="Negative">Negative</button>
+    <button class="filter-btn" data-filter="Very Negative">Very Negative</button>
+</div>
+
+<!-- Results Table -->
+<div class="card">
+    <div class="card-title">Detalhes das Conversas</div>
+    <div class="results-table-wrapper">
+        <table class="results-table" id="resultsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Preview</th>
+                    <th>AI Agent</th>
+                    <th>Score</th>
+                    <th>Sentimento</th>
+                    <th>Corrigir</th>
+                    <th>Conversa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results %}
+                <tr data-sentiment="{{ r.sentiment_label }}" id="row-{{ r.id }}">
+                    <td class="cell-id" title="{{ r.id }}">{{ r.id[-8:] }}</td>
+                    <td class="cell-preview" title="{{ r.preview }}">{{ r.preview }}</td>
+                    <td style="font-size: 0.8rem;">{{ r.ai_agent or '—' }}</td>
+                    <td class="cell-score">{{ r.score }}</td>
+                    <td>
+                        <span class="badge {{ r.css_class }}">{{ r.sentiment_label }}</span>
+                    </td>
+                    <td>
+                        <div class="correction-form" id="corrForm-{{ r.id }}">
+                            <select class="correction-select" id="corrSelect-{{ r.id }}"
+                                onchange="onCorrectionChange('{{ r.id }}', '{{ r.sentiment_label }}')"
+                                data-original="{{ r.sentiment_label }}">
+                                <option value="">—</option>
+                                <option value="Very Negative" {% if r.sentiment_label=='Very Negative' %}selected{%
+                                    endif %}>Very Negative</option>
+                                <option value="Negative" {% if r.sentiment_label=='Negative' %}selected{% endif %}>
+                                    Negative</option>
+                                <option value="Slightly Negative" {% if r.sentiment_label=='Slightly Negative'
+                                    %}selected{% endif %}>Slightly Negative</option>
+                                <option value="Neutral" {% if r.sentiment_label=='Neutral' %}selected{% endif %}>Neutral
+                                </option>
+                                <option value="Slightly Positive" {% if r.sentiment_label=='Slightly Positive'
+                                    %}selected{% endif %}>Slightly Positive</option>
+                                <option value="Positive" {% if r.sentiment_label=='Positive' %}selected{% endif %}>
+                                    Positive</option>
+                                <option value="Very Positive" {% if r.sentiment_label=='Very Positive' %}selected{%
+                                    endif %}>Very Positive</option>
+                            </select>
+                            <button class="btn-correct" id="corrBtn-{{ r.id }}"
+                                onclick="submitCorrection('{{ r.id }}', '{{ r.sentiment_label }}', {{ r.score }})">
+                                Salvar
+                            </button>
+                            <span class="correction-saved" id="corrSaved-{{ r.id }}">✓ Salvo</span>
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn-view-conv" onclick="openConversation({{ loop.index0 }})">
+                            Ver conversa 💬
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Conversation Modal -->
+<div class="modal-overlay" id="convModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <div class="modal-title" id="modalTitle">Conversa</div>
+                <div class="modal-subtitle">
+                    <span id="modalAgent"></span>
+                    <span id="modalBadge"></span>
+                </div>
+            </div>
+            <button class="modal-close" onclick="closeModal()" title="Fechar (Esc)">✕</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- Messages rendered here by JS -->
+        </div>
+        <div class="modal-footer">
+            <span class="msg-count" id="modalMsgCount"></span>
+            <a href="#" id="modalExternalLink" target="_blank" style="display:none;">Abrir no HeadOffice ↗</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Store all conversation data for the modal
+    const conversationsData = {{ results | tojson }};
+
+    // --- Modal ---
+    function openConversation(index) {
+        const r = conversationsData[index];
+        const modal = document.getElementById('convModal');
+        const body = document.getElementById('modalBody');
+
+        // Header info
+        document.getElementById('modalTitle').textContent = 'Conversa #' + r.id.slice(-8);
+        document.getElementById('modalAgent').textContent = r.ai_agent ? '🤖 ' + r.ai_agent : '';
+        document.getElementById('modalBadge').innerHTML = '<span class="badge ' + r.css_class + '">' + r.sentiment_label + ' · ' + r.score + '</span>';
+
+        // External link
+        const extLink = document.getElementById('modalExternalLink');
+        if (r.link) {
+            extLink.href = r.link;
+            extLink.style.display = '';
+        } else {
+            extLink.style.display = 'none';
+        }
+
+        // Render messages
+        body.innerHTML = '';
+        const messages = r.messages || [];
+        document.getElementById('modalMsgCount').textContent = messages.length + ' mensagens';
+
+        messages.forEach((msg, i) => {
+            const text = msg.message;
+            if (!text && !msg.sender) return;
+
+            const senderArr = msg.sender || [];
+            const isCustomer = !senderArr || senderArr.length === 0;
+
+            let senderName = 'Cliente';
+            let msgClass = 'customer';
+
+            if (!isCustomer) {
+                const s = senderArr[0];
+                senderName = (s.firstName || '') + (s.lastName ? ' ' + s.lastName : '');
+                // Check if this sender is the AI agent or a human agent
+                if (r.ai_agent && senderName.trim().toLowerCase().startsWith(r.ai_agent.trim().toLowerCase().split(' ')[0])) {
+                    msgClass = 'agent';
+                    senderName = '🤖 ' + senderName;
+                } else {
+                    msgClass = 'human-agent';
+                    senderName = '👤 ' + senderName;
+                }
+            }
+
+            if (!text) return; // Skip empty messages
+
+            const div = document.createElement('div');
+            div.className = 'chat-msg ' + msgClass;
+            div.style.animationDelay = (i * 0.03) + 's';
+            div.innerHTML =
+                '<div class="chat-sender">' + senderName + '</div>' +
+                '<div class="chat-bubble">' + escapeHtml(text) + '</div>';
+            body.appendChild(div);
+        });
+
+        // Open modal
+        modal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+
+        // Scroll to top of chat
+        body.scrollTop = 0;
+    }
+
+    function closeModal() {
+        document.getElementById('convModal').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    // Close on overlay click
+    document.getElementById('convModal').addEventListener('click', function (e) {
+        if (e.target === this) closeModal();
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeModal();
+    });
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML.replace(/\n/g, '<br>');
+    }
+
+    // --- Filters ---
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const filter = btn.dataset.filter;
+            document.querySelectorAll('#resultsTable tbody tr').forEach(row => {
+                if (filter === 'all' || row.dataset.sentiment === filter) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    });
+
+    // --- Correction ---
+    function onCorrectionChange(id, originalLabel) {
+        const select = document.getElementById('corrSelect-' + id);
+        const btn = document.getElementById('corrBtn-' + id);
+        const saved = document.getElementById('corrSaved-' + id);
+
+        saved.classList.remove('show');
+
+        if (select.value && select.value !== originalLabel) {
+            btn.classList.add('visible');
+        } else {
+            btn.classList.remove('visible');
+        }
+    }
+
+    function submitCorrection(id, originalLabel, originalScore) {
+        const select = document.getElementById('corrSelect-' + id);
+        const btn = document.getElementById('corrBtn-' + id);
+        const saved = document.getElementById('corrSaved-' + id);
+        const correctedLabel = select.value;
+
+        if (!correctedLabel || correctedLabel === originalLabel) return;
+
+        btn.disabled = true;
+        btn.textContent = '...';
+
+        fetch('/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                conversation_id: id,
+                original_label: originalLabel,
+                corrected_label: correctedLabel,
+                original_score: originalScore
+            })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    btn.classList.remove('visible');
+                    saved.classList.add('show');
+
+                    // Update badge
+                    const row = document.getElementById('row-' + id);
+                    const badge = row.querySelector('.badge');
+                    badge.textContent = correctedLabel;
+                    badge.className = 'badge ' + correctedLabel.toLowerCase().replace(/ /g, '-');
+                    row.dataset.sentiment = correctedLabel;
+
+                    // Update the original label in the onchange handler
+                    select.dataset.original = correctedLabel;
+                }
+                btn.disabled = false;
+                btn.textContent = 'Salvar';
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.textContent = 'Salvar';
+                alert('Erro ao salvar correção');
+            });
+    }
+</script>
+{% endblock %}

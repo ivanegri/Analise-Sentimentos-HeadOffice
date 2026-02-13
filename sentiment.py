@@ -45,7 +45,7 @@ class SentimentAnalyzer:
         if isinstance(conversation_data, str):
             sentences = [t.strip() for t in conversation_data.replace('!', '.').replace('?', '.').split('.') if len(t.strip()) > 10]
             # Group sentences into windows of 3
-            window_size = 3
+            window_size = 5
             for i in range(0, len(sentences), window_size):
                 window = ' '.join(sentences[i:i + window_size])
                 if len(window) > 20:
@@ -54,7 +54,7 @@ class SentimentAnalyzer:
             # New format: simple object with direct 'message' field
             if 'message' in conversation_data and isinstance(conversation_data.get('message'), str):
                 msg = conversation_data['message'].strip()
-                if len(msg) > 5:
+                if len(msg) > 2:
                     texts.append(msg)
             # Old format: 'Full Conversation' array
             else:
@@ -62,7 +62,7 @@ class SentimentAnalyzer:
                 for m in messages:
                     if not m.get('sender'):
                         msg = m.get('message', '').strip()
-                        if len(msg) > 5:
+                        if len(msg) > 2:
                             texts.append(msg)
 
         if not texts:
@@ -206,3 +206,59 @@ class SentimentAnalyzer:
                 'very_positive': 0.0
             }
         }
+
+    # Score ranges for each label (used for reclassification after offset)
+    SCORE_RANGES = [
+        (0, 15, 'Very Negative'),
+        (15, 30, 'Negative'),
+        (30, 42, 'Slightly Negative'),
+        (42, 58, 'Neutral'),
+        (58, 70, 'Slightly Positive'),
+        (70, 85, 'Positive'),
+        (85, 100, 'Very Positive'),
+    ]
+
+    @staticmethod
+    def analyze_conversation_with_refinement(conversation_data) -> dict:
+        """
+        Analyze with feedback-based refinement.
+        Applies score offset from accumulated user corrections.
+        """
+        from feedback_store import get_correction_offsets
+
+        result = SentimentAnalyzer.analyze_conversation(conversation_data)
+        offsets = get_correction_offsets()
+
+        if offsets['count'] == 0:
+            result['refined'] = False
+            return result
+
+        # Apply label-specific shift if available, otherwise global offset
+        original_label = result['sentiment_label']
+        label_shifts = offsets.get('label_shifts', {})
+        
+        if original_label in label_shifts:
+            # Per-label offset: shift * 14.3 points per label step
+            specific_offset = label_shifts[original_label] * 14.3
+            adjusted_score = result['score'] + specific_offset
+        else:
+            adjusted_score = result['score'] + offsets['score_offset']
+
+        # Clamp to 0-100
+        adjusted_score = max(0, min(100, round(adjusted_score, 1)))
+
+        # Reclassify based on adjusted score
+        new_label = 'Neutral'
+        for low, high, label in SentimentAnalyzer.SCORE_RANGES:
+            if low <= adjusted_score < high:
+                new_label = label
+                break
+        if adjusted_score >= 85:
+            new_label = 'Very Positive'
+
+        result['score'] = adjusted_score
+        result['sentiment_label'] = new_label
+        result['refined'] = True
+        result['refinement_offset'] = round(adjusted_score - (result.get('_original_score', adjusted_score)), 1)
+
+        return result

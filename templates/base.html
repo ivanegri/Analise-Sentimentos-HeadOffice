@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dashboard de Análise de Sentimentos - HeadOffice">
+  <title>{% block title %}Sentiment Dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">
+      <span class="icon">📊</span>
+      Sentiment Dashboard
+    </a>
+    <div class="navbar-links">
+      <a href="/" class="{% if active_page == 'upload' %}active{% endif %}">Upload</a>
+      <a href="/feedbacks" class="{% if active_page == 'feedbacks' %}active{% endif %}">Feedbacks</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

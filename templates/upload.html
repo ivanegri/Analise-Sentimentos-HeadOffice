@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% set active_page = 'upload' %}
+
+{% block title %}Upload — Sentiment Dashboard{% endblock %}
+
+{% block content %}
+<div class="upload-section">
+    <div class="card upload-card">
+        <h1>Análise de Sentimentos</h1>
+        <p class="subtitle">Envie um arquivo JSON com conversas para análise</p>
+
+        <form id="uploadForm" action="/upload" method="POST" enctype="multipart/form-data">
+            <div class="dropzone" id="dropzone">
+                <div class="icon">📁</div>
+                <p>Arraste seu arquivo aqui ou <span class="highlight">clique para selecionar</span></p>
+                <p style="font-size: 0.75rem; margin-top: 0.5rem; color: var(--text-muted);">Formatos: JSON</p>
+                <input type="file" name="file" id="fileInput" accept=".json">
+            </div>
+
+            <div class="file-preview" id="filePreview">
+                <span>📄</span>
+                <span class="name" id="fileName"></span>
+                <span class="remove" id="fileRemove" title="Remover">✕</span>
+            </div>
+
+            <div class="progress-bar-wrapper" id="progressWrapper">
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Processando...</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                <span class="spinner"></span>
+                <span class="btn-text">Analisar Conversas</span>
+            </button>
+        </form>
+
+        {% if sessions %}
+        <div class="sessions-list">
+            <h3>Análises Anteriores</h3>
+            {% for session in sessions %}
+            <div class="session-item">
+                <a href="/results/{{ session.id }}">{{ session.filename }}</a>
+                <span class="session-meta">{{ session.count }} conversas · {{ session.date }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const filePreview = document.getElementById('filePreview');
+    const fileName = document.getElementById('fileName');
+    const fileRemove = document.getElementById('fileRemove');
+    const submitBtn = document.getElementById('submitBtn');
+    const form = document.getElementById('uploadForm');
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            showFile(fileInput.files[0]);
+        }
+    });
+
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            showFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    function showFile(file) {
+        fileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        filePreview.classList.add('active');
+        submitBtn.disabled = false;
+    }
+
+    fileRemove.addEventListener('click', (e) => {
+        e.preventDefault();
+        fileInput.value = '';
+        filePreview.classList.remove('active');
+        submitBtn.disabled = true;
+    });
+
+    form.addEventListener('submit', () => {
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+        document.getElementById('progressWrapper').classList.add('active');
+
+        // Simulate progress
+        let progress = 0;
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const interval = setInterval(() => {
+            progress += Math.random() * 8;
+            if (progress > 90) { clearInterval(interval); progress = 90; }
+            progressFill.style.width = progress + '%';
+            progressText.textContent = 'Analisando conversas... ' + Math.round(progress) + '%';
+        }, 500);
+    });
+</script>
+{% endblock %}

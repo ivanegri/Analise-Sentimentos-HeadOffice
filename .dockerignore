@@ -2,7 +2,6 @@ __pycache__
 *.pyc
 .git
 .gitignore
-*.json
 *.pdf
 *.csv
 *.lock
@@ -13,3 +12,7 @@ env
 Dockerfile
 docker-compose.yml
 README.md
+DEPLOY.md
+sessions/
+feedbacks.json
+test_sample.json
